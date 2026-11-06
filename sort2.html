@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>정렬 관찰실 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f8;
+    --surface: #ffffff;
+    --fg: #1b2330;
+    --muted: #5a6577;
+    --line: #d8dee7;
+    --bar: #94a2b8;
+    --cmp: #2563eb;
+    --min: #7c3aed;
+    --swap: #d9480f;
+    --ok: #2b8a5e;
+    --accent: #2563eb;
+    --accent-fg: #ffffff;
+    --soft: #e8edf5;
+    --font-body: "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --dur: 450ms;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11161d; --surface: #1a212b; --fg: #e7ebf1; --muted: #9aa6b8; --line: #2b3441;
+      --bar: #5b6a82; --cmp: #6c9bff; --min: #b18cff; --swap: #ff8c52; --ok: #4cc38a;
+      --accent: #6c9bff; --accent-fg: #0d1320; --soft: #232c38; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11161d; --surface: #1a212b; --fg: #e7ebf1; --muted: #9aa6b8; --line: #2b3441;
+    --bar: #5b6a82; --cmp: #6c9bff; --min: #b18cff; --swap: #ff8c52; --ok: #4cc38a;
+    --accent: #6c9bff; --accent-fg: #0d1320; --soft: #232c38; color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 15px;
+    line-height: 1.6;
+    padding-block: 28px 48px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+  h1 { font-size: clamp(24px, 5vw, 32px); line-height: 1.25; margin: 0; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+  h2 { font-size: 16px; margin: 0 0 10px; font-weight: 600; }
+  p { margin: 0; }
+  .lead { color: var(--muted); margin-top: 6px; max-width: 62ch; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px; min-width: 0; }
+
+  /* stage */
+  .stage { position: relative; height: clamp(250px, 40vh, 340px); padding-top: 48px; border-bottom: 2px solid var(--line); }
+  .bars { position: relative; height: 100%; }
+  .bar { position: absolute; top: 0; bottom: 0; transition: left var(--dur) ease; }
+  .fill { position: absolute; left: 12%; right: 12%; bottom: 0; background: var(--bar); border-radius: 5px 5px 0 0; transition: background-color .2s ease; }
+  .val { position: absolute; bottom: 100%; left: -20%; right: -20%; text-align: center; font-family: var(--font-num); font-weight: 600; font-size: clamp(12px, 2.6vw, 18px); padding-bottom: 3px; font-variant-numeric: tabular-nums; }
+  .star { position: absolute; bottom: calc(100% + 1.55em); left: -20%; right: -20%; text-align: center; color: var(--min); font-size: clamp(14px, 3vw, 20px); line-height: 1; visibility: hidden; }
+  .bar.min .star { visibility: visible; }
+  .bar.cmp .fill { background: var(--cmp); }
+  .bar.min .fill { background: var(--min); }
+  .bar.swap .fill { background: var(--swap); }
+  .bar.cmp .val { color: var(--cmp); }
+  .bar.min .val { color: var(--min); }
+  .bar.swap .val { color: var(--swap); }
+  .slots { position: relative; height: 26px; margin-top: 6px; }
+  .slot { position: absolute; top: 0; text-align: center; font-size: 12px; color: var(--muted); font-family: var(--font-num); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+  .caption { margin-top: 14px; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--soft); border-radius: 10px; font-weight: 500; }
+  .tag { flex: none; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; color: var(--accent-fg); background: var(--muted); letter-spacing: 0.03em; }
+  .tag.cmp { background: var(--cmp); }
+  .tag.min { background: var(--min); }
+  .tag.swap { background: var(--swap); }
+  .tag.ok { background: var(--ok); }
+
+  .meter { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .meter b { color: var(--fg); font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+  .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  button { font: inherit; cursor: pointer; }
+  .btn { background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; min-height: 40px; font-weight: 500; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); min-width: 96px; font-weight: 600; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn:disabled:hover { border-color: var(--line); }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .scrub { flex: 1 1 200px; min-width: 0; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+
+  .setup { display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: end; margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--line); }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .field input[type="text"], .field select { font: inherit; padding: 8px 10px; min-height: 40px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); }
+  .field input[type="text"] { width: min(100%, 260px); font-family: var(--font-num); }
+  .inline { display: flex; gap: 8px; align-items: end; flex-wrap: wrap; }
+  .speed { width: 150px; }
+  .msg { font-size: 13px; color: var(--swap); min-height: 20px; flex-basis: 100%; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .log { list-style: none; margin: 0; padding: 0; max-height: 250px; overflow-y: auto; font-size: 13.5px; border: 1px solid var(--line); border-radius: 8px; }
+  .log li { display: flex; gap: 10px; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  .log li:last-child { border-bottom: 0; background: var(--soft); font-weight: 600; }
+  .log .n { color: var(--muted); font-family: var(--font-num); min-width: 2.2em; text-align: right; font-variant-numeric: tabular-nums; flex: none; }
+  .log .empty { color: var(--muted); }
+  .hint { color: var(--muted); font-size: 13px; margin-bottom: 8px; display: block; }
+
+  ol.q { margin: 0 0 12px; padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; }
+  textarea { width: 100%; min-height: 96px; font: inherit; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); resize: vertical; }
+
+  @media (prefers-reduced-motion: reduce) { .bar, .fill { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>정렬 관찰실 2</h1>
+    <p class="lead">이번에는 다른 방법으로 줄을 정리합니다. ★ 표시가 어디로 옮겨 다니는지, 언제 자리를 바꾸는지 잘 보고 규칙을 찾아내 보세요.</p>
+  </header>
+
+  <section class="card" aria-label="정렬 과정 보기">
+    <div class="stage">
+      <div class="bars" id="bars"></div>
+    </div>
+    <div class="slots" id="slots" aria-hidden="true"></div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--min)"></i>★ 표시된 칸</span>
+      <span><i style="background:var(--cmp)"></i>살펴보는 칸</span>
+      <span><i style="background:var(--swap)"></i>자리 바꾸는 칸</span>
+    </div>
+
+    <div class="caption" aria-live="polite">
+      <span class="tag" id="tag">준비</span>
+      <span id="caption"></span>
+    </div>
+
+    <div class="meter">
+      <span>단계 <b id="mStep">0</b> / <b id="mTotal">0</b></span>
+      <span>비교한 횟수 <b id="mCmp">0</b></span>
+      <span>자리를 바꾼 횟수 <b id="mSwp">0</b></span>
+    </div>
+
+    <div class="controls">
+      <div class="btns">
+        <button class="btn" id="bFirst" type="button" aria-label="처음으로">⏮ 처음</button>
+        <button class="btn" id="bPrev" type="button" aria-label="한 단계 뒤로">◀ 이전</button>
+        <button class="btn primary" id="bPlay" type="button">▶ 재생</button>
+        <button class="btn" id="bNext" type="button" aria-label="한 단계 앞으로">다음 ▶</button>
+        <button class="btn" id="bLast" type="button" aria-label="끝으로">끝 ⏭</button>
+      </div>
+      <div class="scrub">
+        <input type="range" id="scrub" min="0" max="0" value="0" aria-label="진행 단계">
+      </div>
+    </div>
+
+    <div class="setup">
+      <div class="field">
+        <label for="speed">속도</label>
+        <input type="range" id="speed" class="speed" min="1" max="5" value="3">
+      </div>
+      <div class="field">
+        <label for="count">숫자 개수</label>
+        <select id="count"></select>
+      </div>
+      <button class="btn" id="bShuffle" type="button">새로 섞기</button>
+      <form class="inline" id="form">
+        <div class="field">
+          <label for="custom">직접 입력 (1~99, 쉼표로 구분)</label>
+          <input type="text" id="custom" inputmode="numeric" autocomplete="off" value="7, 3, 9, 2, 5, 8, 1">
+        </div>
+        <button class="btn" type="submit">적용</button>
+      </form>
+      <p class="msg" id="msg" role="status"></p>
+    </div>
+  </section>
+
+  <div class="grid">
+    <section class="card">
+      <h2>진행 기록</h2>
+      <p class="hint">지금까지 일어난 일이 순서대로 쌓입니다.</p>
+      <ol class="log" id="log"></ol>
+    </section>
+
+    <section class="card">
+      <h2>관찰 질문</h2>
+      <ol class="q">
+        <li>★ 표시는 처음에 어느 칸에 붙나요? 어떤 수를 만나면 ★가 옮겨 가나요?</li>
+        <li>한 바퀴 동안 살펴보는 칸은 어디부터 어디까지인가요?</li>
+        <li>한 바퀴가 끝날 때 어떤 두 칸의 자리를 바꾸나요? 그 결과 어떤 수가 어디에 놓이나요?</li>
+        <li>바퀴가 지날수록 무엇이 달라지나요? 몇 바퀴를 돌고 멈추나요?</li>
+        <li>버블 정렬과 비교하면 자리를 바꾸는 횟수는 어떤가요?</li>
+      </ol>
+      <label for="notes" class="hint">내가 찾은 규칙을 써 보세요.</label>
+      <textarea id="notes" placeholder="예: 먼저 ○번 칸에 ★를 붙인다. 그다음 …"></textarea>
+    </section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var barsEl = $('bars'), slotsEl = $('slots'), logEl = $('log');
+  var DELAYS = [1500, 1050, 720, 450, 240];
+
+  var values = [7, 3, 9, 2, 5, 8, 1];
+  var steps = [];
+  var cur = 0;
+  var timer = null;
+  var barNodes = [];
+
+  /* Each step: kind, order (bar ids by position), mark (★ position or -1),
+     look (position being examined or -1), pair (positions swapped), counts, values for captions. */
+  function buildSteps(vals) {
+    var n = vals.length;
+    var order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    var out = [];
+    var cmp = 0, swp = 0;
+    function v(p) { return vals[order[p]]; }
+    function push(o) {
+      o.order = order.slice(); o.cmp = cmp; o.swp = swp;
+      if (o.mark === undefined) o.mark = -1;
+      if (o.look === undefined) o.look = -1;
+      if (!o.pair) o.pair = [];
+      out.push(o);
+    }
+    push({ kind: 'start' });
+    for (var i = 0; i < n - 1; i++) {
+      var m = i;
+      push({ kind: 'mark', mark: m, pos: m, v: v(m), round: i + 1 });
+      for (var j = i + 1; j < n; j++) {
+        cmp++;
+        push({ kind: 'compare', mark: m, look: j, m: m, j: j, vm: v(m), vj: v(j) });
+        if (v(j) < v(m)) {
+          m = j;
+          push({ kind: 'move', mark: m, m: m, vm: v(m) });
+        } else {
+          push({ kind: 'keep', mark: m, look: j, m: m, j: j, vm: v(m), vj: v(j) });
+        }
+      }
+      if (m !== i) {
+        var vi = v(i), vm = v(m);
+        var t = order[i]; order[i] = order[m]; order[m] = t;
+        swp++;
+        push({ kind: 'swap', pair: [i, m], i: i, m: m, vi: vi, vm: vm });
+      } else {
+        push({ kind: 'stay', mark: i, i: i, vi: v(i) });
+      }
+    }
+    push({ kind: 'done' });
+    return out;
+  }
+  window.__buildSteps = buildSteps;
+
+  function describe(s) {
+    switch (s.kind) {
+      case 'start': return ['준비', '숫자 ' + values.length + '개가 섞여 있어요. ▶ 재생을 누르거나 다음 단계로 넘겨 보세요.', ''];
+      case 'done': return ['끝', '모두 끝났어요. 숫자가 작은 것부터 차례로 놓였어요.', 'ok'];
+      case 'mark': return ['표시', (s.pos + 1) + '번 칸 ' + s.v + ' 에 ★ 표시를 붙였어요.', 'min'];
+      case 'compare': return ['비교', (s.j + 1) + '번 칸 ' + s.vj + ' 와 ★ ' + (s.m + 1) + '번 칸 ' + s.vm + ' 를 살펴봐요.', 'cmp'];
+      case 'move': return ['이동', '★ 표시를 ' + (s.m + 1) + '번 칸 ' + s.vm + ' 로 옮겼어요.', 'min'];
+      case 'keep': return ['그대로', '★ 표시는 ' + (s.m + 1) + '번 칸 ' + s.vm + ' 에 그대로 있어요.', 'cmp'];
+      case 'swap': return ['교환', (s.i + 1) + '번 칸 ' + s.vi + ' 와 ★ ' + (s.m + 1) + '번 칸 ' + s.vm + ' 의 자리를 바꿨어요.', 'swap'];
+      case 'stay': return ['그대로', '★ 표시가 ' + (s.i + 1) + '번 칸 ' + s.vi + ' 에 그대로 있어서 자리를 바꾸지 않았어요.', 'min'];
+    }
+    return ['', '', ''];
+  }
+
+  function layout() {
+    var n = values.length;
+    var max = Math.max.apply(null, values);
+    barsEl.textContent = '';
+    slotsEl.textContent = '';
+    barNodes = [];
+    var w = 100 / n;
+    for (var i = 0; i < n; i++) {
+      var bar = document.createElement('div');
+      bar.className = 'bar';
+      bar.style.width = w + '%';
+      var fill = document.createElement('div');
+      fill.className = 'fill';
+      fill.style.height = Math.max(6, values[i] / max * 86) + '%';
+      var star = document.createElement('div');
+      star.className = 'star';
+      star.textContent = '★';
+      var val = document.createElement('div');
+      val.className = 'val';
+      val.textContent = values[i];
+      fill.appendChild(star);
+      fill.appendChild(val);
+      bar.appendChild(fill);
+      barsEl.appendChild(bar);
+      barNodes.push(bar);
+
+      var slot = document.createElement('div');
+      slot.className = 'slot';
+      slot.style.left = (i * w) + '%';
+      slot.style.width = w + '%';
+      slot.textContent = (i + 1) + '번';
+      slotsEl.appendChild(slot);
+    }
+  }
+
+  function render() {
+    var s = steps[cur];
+    var n = values.length;
+    var w = 100 / n;
+    var pos = {};
+    for (var i = 0; i < n; i++) pos[s.order[i]] = i;
+    for (var id = 0; id < n; id++) {
+      var p = pos[id];
+      var node = barNodes[id];
+      node.style.left = (p * w) + '%';
+      var cls = 'bar';
+      if (s.pair.indexOf(p) !== -1) cls += ' swap';
+      else if (p === s.mark) cls += ' min';
+      else if (p === s.look) cls += ' cmp';
+      node.className = cls;
+    }
+    var d = describe(s);
+    $('tag').textContent = d[0];
+    $('tag').className = 'tag' + (d[2] ? ' ' + d[2] : '');
+    $('caption').textContent = d[1];
+    $('mStep').textContent = cur;
+    $('mTotal').textContent = steps.length - 1;
+    $('mCmp').textContent = s.cmp;
+    $('mSwp').textContent = s.swp;
+    $('scrub').value = cur;
+    $('bFirst').disabled = $('bPrev').disabled = cur === 0;
+    $('bNext').disabled = $('bLast').disabled = cur === steps.length - 1;
+    renderLog();
+  }
+
+  function renderLog() {
+    logEl.textContent = '';
+    if (cur === 0) {
+      var li0 = document.createElement('li');
+      li0.className = 'empty';
+      li0.textContent = '아직 아무 일도 일어나지 않았어요.';
+      logEl.appendChild(li0);
+      return;
+    }
+    for (var i = 1; i <= cur; i++) {
+      var d = describe(steps[i]);
+      var li = document.createElement('li');
+      var num = document.createElement('span');
+      num.className = 'n';
+      num.textContent = i;
+      var txt = document.createElement('span');
+      txt.textContent = d[0] + ' · ' + d[1];
+      li.appendChild(num);
+      li.appendChild(txt);
+      logEl.appendChild(li);
+    }
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function delay() { return DELAYS[+$('speed').value - 1]; }
+  function applySpeed() {
+    document.documentElement.style.setProperty('--dur', Math.min(450, Math.round(delay() * 0.6)) + 'ms');
+  }
+  function stop() {
+    if (timer) { clearTimeout(timer); timer = null; }
+    $('bPlay').textContent = '▶ 재생';
+  }
+  function tick() {
+    if (cur >= steps.length - 1) { stop(); return; }
+    cur++;
+    render();
+    if (cur >= steps.length - 1) { stop(); return; }
+    timer = setTimeout(tick, delay());
+  }
+  function play() {
+    if (timer) { stop(); return; }
+    if (cur >= steps.length - 1) { cur = 0; render(); }
+    $('bPlay').textContent = '⏸ 멈춤';
+    timer = setTimeout(tick, 350);
+  }
+  function go(n) {
+    stop();
+    cur = Math.max(0, Math.min(steps.length - 1, n));
+    render();
+  }
+
+  function load(vals) {
+    stop();
+    values = vals;
+    steps = buildSteps(values);
+    cur = 0;
+    $('scrub').max = steps.length - 1;
+    layout();
+    $('custom').value = values.join(', ');
+    render();
+  }
+
+  var sel = $('count');
+  for (var c = 5; c <= 12; c++) {
+    var o = document.createElement('option');
+    o.value = c; o.textContent = c + '개';
+    if (c === 7) o.selected = true;
+    sel.appendChild(o);
+  }
+  function randomValues(n) {
+    var pool = [];
+    for (var i = 5; i <= 99; i++) pool.push(i);
+    var out = [];
+    while (out.length < n) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    return out;
+  }
+  function isSorted(v) {
+    for (var i = 1; i < v.length; i++) if (v[i - 1] > v[i]) return false;
+    return true;
+  }
+  $('bShuffle').addEventListener('click', function () {
+    $('msg').textContent = '';
+    var v;
+    do { v = randomValues(+sel.value); } while (isSorted(v));
+    load(v);
+  });
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var nums = $('custom').value.split(/[\s,]+/).filter(Boolean).map(Number);
+    var bad = nums.length < 3 || nums.length > 12 || nums.some(function (x) { return !(x >= 1 && x <= 99) || Math.floor(x) !== x; });
+    if (bad) {
+      $('msg').textContent = '1에서 99 사이의 정수를 3개에서 12개까지 쉼표로 구분해 입력해 주세요.';
+      return;
+    }
+    $('msg').textContent = '';
+    sel.value = Math.min(12, Math.max(5, nums.length));
+    load(nums);
+  });
+
+  $('bPlay').addEventListener('click', play);
+  $('bFirst').addEventListener('click', function () { go(0); });
+  $('bPrev').addEventListener('click', function () { go(cur - 1); });
+  $('bNext').addEventListener('click', function () { go(cur + 1); });
+  $('bLast').addEventListener('click', function () { go(steps.length - 1); });
+  $('scrub').addEventListener('input', function () { go(+this.value); });
+  $('speed').addEventListener('input', applySpeed);
+
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+    if (e.key === 'ArrowRight') go(cur + 1);
+    else if (e.key === 'ArrowLeft') go(cur - 1);
+  });
+
+  applySpeed();
+  load(values);
+})();
+</script>
+</body>
+</html>
